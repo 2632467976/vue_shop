@@ -18,6 +18,7 @@ router.beforeEach((to, from, next) => {
   // to 将要访问的路径
   // from 从哪个路径跳转来的
   // next() 放行/跳转到自定义路径
+  if (to.path === '/login') return next()
 
   // 没有登录，强制跳转
   const tokenStr = window.sessionStorage.getItem('token')
