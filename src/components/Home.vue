@@ -19,6 +19,7 @@
           :collapse="isCollapse"
           :collapse-transition="false"
           :router="true"
+          :default-active="activePath"
           background-color="#333744"
           text-color="#fff"
           active-text-color="#ffd04b"
@@ -34,6 +35,7 @@
               :index="'/' + subItem.path"
               :key="subItem.id"
               v-for="subItem in item.children"
+              @click="saveNavState('/' + subItem.path)"
             >
               <template slot="title">
                 <i class="el-icon-menu"></i>
@@ -70,11 +72,13 @@ export default {
         102: 'iconfont icon-danju',
         145: 'iconfont icon-baobiao'
       },
-      isCollapse: false
+      isCollapse: false,
+      activePath: '' // 激活的链接
     }
   },
   created () {
     this.getMenuList()
+    this.activePath = window.sessionStorage.getItem('activePath')
   },
   methods: {
     logout () {
@@ -89,6 +93,11 @@ export default {
     // 侧边栏折叠
     toggleCollapse () {
       this.isCollapse = !this.isCollapse
+    },
+    // 保存点击菜单状态
+    saveNavState (activePath) {
+      window.sessionStorage.setItem('activePath', activePath)
+      this.activePath = activePath
     }
   }
 }
