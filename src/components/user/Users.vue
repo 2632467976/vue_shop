@@ -50,7 +50,12 @@
               @click="reomveUserByID(scope.row.id)"
             ></el-button>
             <el-tooltip effect="dark" content="分配角色" placement="top" :enterable="false">
-              <el-button type="warning" icon="el-icon-setting" size="mini"></el-button>
+              <el-button
+                type="warning"
+                icon="el-icon-setting"
+                size="mini"
+                @click="setRole(scope.row)"
+              ></el-button>
             </el-tooltip>
           </template>
         </el-table-column>
@@ -124,6 +129,34 @@
         <el-button type="primary" @click="editUser">确 定</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog
+      title="分配角色"
+      :visible.sync="roleDialogVisible"
+      @close="setRightDialogClose"
+      width="50%"
+    >
+      <div>
+        <p>当前的用户：{{userInfo.username}}</p>
+        <p>当前的角色：{{userInfo.role_name}}</p>
+        <p>
+          分配新角色：
+          <el-select v-model="selectedRoleId" placeholder="请选择">
+            <el-option
+              v-for="item in rolesList"
+              :key="item.id"
+              :label="item.roleName"
+              :value="item.id"
+            ></el-option>
+          </el-select>
+        </p>
+      </div>
+
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="roleDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="saveRoleInfo">确 定</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -147,8 +180,15 @@ export default {
       },
       userlist: [], // 用户列表
       total: 0, // 查询总数
+
+      userInfo: {}, // 当前选中的用户
+      rolesList: [], // 所有角色的数据列表
+      selectedRoleId: '', // 选择的角色
+
       dialogVisible: false, // 添加用户对话框的显示或隐藏
       editDialogVisible: false, // 编辑用户对话框的显示或隐藏
+      roleDialogVisible: false, // 分配权限对话框的显示或隐藏
+
       // 添加用户的表单数据
       addUserForm: {
         username: '',
@@ -156,6 +196,8 @@ export default {
         email: '',
         mobile: ''
       },
+      // 编辑用户的表单数据
+      editUserForm: {},
       // 添加用户表单的校验规则
       addUserFormRules: {
         username: [
@@ -185,9 +227,7 @@ export default {
           { required: true, message: '请输入手机号', trigger: 'blur' },
           { validator: checkMobile, trigger: 'blur' }
         ]
-      },
-      // 编辑用户的表单数据
-      editUserForm: {}
+      }
     }
   },
   created () {
@@ -198,10 +238,18 @@ export default {
     dialogClosed () {
       this.$refs.addUserFormRef.resetFields()
     },
+
     // 编辑用户对话框关闭事件
     editDialogClosed () {
       this.$refs.editUserFormRef.resetFields()
     },
+
+    // 分配权限对话框关闭事件
+    setRightDialogClose () {
+      this.selectedRoleId = ''
+      this.userInfo = {}
+    },
+
     // 当前页数
     handleCurrentChange (newPage) {
       this.queryInfo.pagenum = newPage
@@ -214,18 +262,6 @@ export default {
       this.getUserList()
     },
 
-    // 修改用户状态
-    async userStateChanged (userinfo) {
-      const { data: res } = await this.$http.put(
-        `users/${userinfo.id}/state/${userinfo.mg_state}`
-      )
-      if (res.meta.status !== 200) {
-        userinfo.mg_state = !userinfo.mg_state
-        return this.$message.error('更新用户状态失败')
-      }
-      this.$message.success('更新用户状态失败')
-    },
-
     // 获取用户数据
     async getUserList () {
       const { data: res } = await this.$http.get('users', {
@@ -236,6 +272,18 @@ export default {
       }
       this.userlist = res.data.users
       this.total = res.data.total
+    },
+
+    // 修改用户状态
+    async userStateChanged (userinfo) {
+      const { data: res } = await this.$http.put(
+        `users/${userinfo.id}/state/${userinfo.mg_state}`
+      )
+      if (res.meta.status !== 200) {
+        userinfo.mg_state = !userinfo.mg_state
+        return this.$message.error('更新用户状态失败')
+      }
+      this.$message.success('更新用户状态失败')
     },
 
     // 添加用户
@@ -305,6 +353,37 @@ export default {
         .catch(() => {
           this.$message.info('已取消删除')
         })
+    },
+
+    // 分配角色 对话框
+    async setRole (userInfo) {
+      this.userInfo = userInfo
+      const { data: res } = await this.$http.get('roles')
+      if (res.meta.status !== 200) {
+        return this.$message.error(res.meta.msg)
+      }
+      this.rolesList = res.data
+      this.roleDialogVisible = true
+    },
+
+    // 修改用户角色
+    async saveRoleInfo () {
+      if (!this.selectedRoleId) {
+        return this.$message.error('请选择要分配的角色！')
+      }
+
+      const { data: res } = await this.$http.put(
+        `users/${this.userInfo.id}/role`,
+        {
+          rid: this.selectedRoleId
+        }
+      )
+      if (res.meta.status !== 200) {
+        return this.$message.error(res.meta.msg)
+      }
+      this.$message.success(res.meta.msg)
+      this.getUserList()
+      this.roleDialogVisible = false
     }
   }
 }
