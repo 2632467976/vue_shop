@@ -36,9 +36,19 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="180px">
-          <template slot-scope>
-            <el-button type="primart" icon="el-icon-edit" size="mini"></el-button>
-            <el-button type="danger" icon="el-icon-delete" size="mini"></el-button>
+          <template slot-scope="scope">
+            <el-button
+              type="primart"
+              icon="el-icon-edit"
+              size="mini"
+              @click="editDialog(scope.row.id)"
+            ></el-button>
+            <el-button
+              type="danger"
+              icon="el-icon-delete"
+              size="mini"
+              @click="reomveUserByID(scope.row.id)"
+            ></el-button>
             <el-tooltip effect="dark" content="分配角色" placement="top" :enterable="false">
               <el-button type="warning" icon="el-icon-setting" size="mini"></el-button>
             </el-tooltip>
@@ -60,7 +70,7 @@
       <!-- 分页 end -->
     </el-card>
 
-    <el-dialog title="添加用户" :visible.sync="dialogVisible" @close="dialogClosed" width="30%">
+    <el-dialog title="添加用户" :visible.sync="dialogVisible" @close="dialogClosed" width="50%">
       <!-- 表单 -->
       <el-form
         ref="addUserFormRef"
@@ -78,14 +88,40 @@
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="addUserForm.email"></el-input>
         </el-form-item>
-        <el-form-item label="手机号" prop="monile">
-          <el-input v-model="addUserForm.monile"></el-input>
+        <el-form-item label="手机号" prop="mobile">
+          <el-input v-model="addUserForm.mobile"></el-input>
         </el-form-item>
       </el-form>
       <!-- 表单 end -->
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
         <el-button type="primary" @click="addUser">确 定</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="修改用户" :visible.sync="editDialogVisible" @close="editDialogClosed" width="50%">
+      <!-- 表单 -->
+      <el-form
+        ref="editUserFormRef"
+        class="login_form"
+        :model="editUserForm"
+        :rules="editUserFormRules"
+        label-width="70px"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="editUserForm.username" disabled></el-input>
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="editUserForm.email"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号" prop="mobile">
+          <el-input v-model="editUserForm.mobile"></el-input>
+        </el-form-item>
+      </el-form>
+      <!-- 表单 end -->
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="editDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="editUser">确 定</el-button>
       </span>
     </el-dialog>
   </div>
@@ -99,9 +135,9 @@ export default {
       const regEmail = /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$/
       regEmail.test(value) ? cb() : cb(new Error('请输入合法的邮箱'))
     }
-    var checkMonile = (rule, value, cb) => {
-      const regMonile = /^1(3|4|5|7|8)\d{9}$/
-      regMonile.test(value) ? cb() : cb(new Error('请输入合法的手机号'))
+    var checkMobile = (rule, value, cb) => {
+      const regmobile = /^1(3|4|5|7|8)\d{9}$/
+      regmobile.test(value) ? cb() : cb(new Error('请输入合法的手机号'))
     }
     return {
       queryInfo: {
@@ -109,17 +145,18 @@ export default {
         pagenum: 1, // 当前页数
         pagesize: 2 // 每页显示数量
       },
-      userlist: [],
-      total: 0,
+      userlist: [], // 用户列表
+      total: 0, // 查询总数
       dialogVisible: false, // 添加用户对话框的显示或隐藏
+      editDialogVisible: false, // 编辑用户对话框的显示或隐藏
       // 添加用户的表单数据
       addUserForm: {
         username: '',
         password: '',
         email: '',
-        monile: ''
+        mobile: ''
       },
-      //   添加用户表单的校验规则
+      // 添加用户表单的校验规则
       addUserFormRules: {
         username: [
           { required: true, message: '请输入用户名称', trigger: 'blur' },
@@ -133,20 +170,37 @@ export default {
           { required: true, message: '请输入邮箱', trigger: 'blur' },
           { validator: checkEamail, trigger: 'blur' }
         ],
-        monile: [
+        mobile: [
           { required: true, message: '请输入手机号', trigger: 'blur' },
-          { validator: checkMonile, trigger: 'blur' }
+          { validator: checkMobile, trigger: 'blur' }
         ]
-      }
+      },
+      // 修改用户表单的校验规则
+      editUserFormRules: {
+        email: [
+          { required: true, message: '请输入邮箱', trigger: 'blur' },
+          { validator: checkEamail, trigger: 'blur' }
+        ],
+        mobile: [
+          { required: true, message: '请输入手机号', trigger: 'blur' },
+          { validator: checkMobile, trigger: 'blur' }
+        ]
+      },
+      // 编辑用户的表单数据
+      editUserForm: {}
     }
   },
   created () {
     this.getUserList()
   },
   methods: {
-    //   添加用户对话框关闭事件
+    // 添加用户对话框关闭事件
     dialogClosed () {
       this.$refs.addUserFormRef.resetFields()
+    },
+    // 编辑用户对话框关闭事件
+    editDialogClosed () {
+      this.$refs.editUserFormRef.resetFields()
     },
     // 当前页数
     handleCurrentChange (newPage) {
@@ -183,23 +237,74 @@ export default {
       this.userlist = res.data.users
       this.total = res.data.total
     },
+
     // 添加用户
     addUser () {
       this.$refs.addUserFormRef.validate(async valid => {
-        //   是否通过验证
+        // 是否通过验证
         if (!valid) return
 
         const { data: res } = await this.$http.post('users', this.addUserForm)
         if (res.meta.status !== 201) {
           return this.$message.error(res.meta.msg)
         }
-        console.log(res)
         this.$message.success('添加用户成功')
         // 隐藏对话框
         this.dialogVisible = false
         // 重新加载用户列表数据
         this.getUserList()
       })
+    },
+
+    // 编辑用户
+    editUser () {
+      this.$refs.editUserFormRef.validate(async valid => {
+        // 是否通过验证
+        if (!valid) return
+
+        const { data: res } = await this.$http.put(
+          'users/' + this.editUserForm.id,
+          { email: this.editUserForm.email, mobile: this.editUserForm.mobile }
+        )
+        if (res.meta.status !== 200) {
+          return this.$message.error('更新用户信息失败')
+        }
+        this.$message.success('更新用户信息成功')
+        // 隐藏对话框
+        this.editDialogVisible = false
+        // 重新加载用户列表数据
+        this.getUserList()
+      })
+    },
+
+    // 编辑用户对话框
+    async editDialog (id) {
+      const { data: res } = await this.$http.get('users/' + id)
+      if (res.meta.status !== 200) {
+        return this.$message.error(res.meta.msg)
+      }
+      this.editUserForm = res.data
+      this.editDialogVisible = true
+    },
+
+    // 根据id删除用户
+    reomveUserByID (id) {
+      this.$confirm('此操作将永久删除该用户, 是否继续?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+        .then(async () => {
+          const { data: res } = await this.$http.delete('users/' + id)
+          if (res.meta.status !== 200) {
+            return this.$message.error(res.meta.msg)
+          }
+          this.$message.success('删除成功!')
+          this.getUserList()
+        })
+        .catch(() => {
+          this.$message.info('已取消删除')
+        })
     }
   }
 }
